@@ -2,8 +2,8 @@
   "name": "@figma/my-make-file",
   "private": true,
   "version": "0.0.1",
-
-  "main": "electron/main.js",
+  "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "backend": "node backend/server.js",
@@ -43,6 +43,7 @@
     "@radix-ui/react-toggle": "1.1.2",
     "@radix-ui/react-toggle-group": "1.1.2",
     "@radix-ui/react-tooltip": "1.1.8",
+    "axios": "^1.13.2",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
@@ -68,6 +69,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
+    "@types/axios": "^0.9.36",
     "@vitejs/plugin-react": "4.7.0",
     "concurrently": "^9.2.1",
     "electron": "^39.2.7",
