@@ -47,58 +47,106 @@ const saveReviewsForUrl = (data: WebsiteReviewData) => {
 };
 
 export function RatingComments({ url }: RatingCommentsProps) {
-  const [reviewData, setReviewData] = useState<WebsiteReviewData>(() =>
-    getReviewsForUrl(url)
-  );
+  const [reviewData, setReviewData] = useState<WebsiteReviewData>(() => getReviewsForUrl(url));
   const [hoverRating, setHoverRating] = useState(0);
   const [commentText, setCommentText] = useState('');
   const [userName, setUserName] = useState('');
+  const [loadingComments, setLoadingComments] = useState(false);
 
+  // Load comments from backend
   useEffect(() => {
-    const data = getReviewsForUrl(url);
-    setReviewData(data);
+    async function fetchComments() {
+      setLoadingComments(true);
+      try {
+        const res = await fetch(`http://localhost:3000/get-comments?url=${encodeURIComponent(url)}`);
+        const result = await res.json();
+        if (result.success) {
+          // Map backend comments to local format
+          const comments = result.data.map((c: any) => ({
+            id: c._id || c.id || Date.now().toString(),
+            author: c.name || c.author || 'Anonymous',
+            text: c.comment || c.text || '',
+            timestamp: c.timestamp ? new Date(c.timestamp).getTime() : Date.now(),
+            rating: c.rating || 0,
+          }));
+          setReviewData((prev) => ({ ...prev, comments }));
+        }
+      } catch (err) {
+        // fallback to localStorage comments if offline
+        setReviewData(getReviewsForUrl(url));
+      } finally {
+        setLoadingComments(false);
+      }
+    }
+    fetchComments();
     setCommentText('');
   }, [url]);
 
+  // Ratings remain local only
   const handleRating = (stars: number) => {
     const newData = { ...reviewData };
-    
-    // If user already rated, update the average
     if (newData.userRating) {
       const oldTotal = newData.rating.stars * newData.rating.count;
       const newTotal = oldTotal - newData.userRating + stars;
       newData.rating.stars = newTotal / newData.rating.count;
     } else {
-      // New rating
       const oldTotal = newData.rating.stars * newData.rating.count;
       newData.rating.count += 1;
       newData.rating.stars = (oldTotal + stars) / newData.rating.count;
     }
-    
     newData.userRating = stars;
     setReviewData(newData);
     saveReviewsForUrl(newData);
   };
 
-  const handleSubmitComment = () => {
+  // Save comment to backend
+  const handleSubmitComment = async () => {
     if (!commentText.trim()) return;
-
-    const newComment: Comment = {
-      id: Date.now().toString(),
-      author: userName.trim() || 'Anonymous',
-      text: commentText.trim(),
-      timestamp: Date.now(),
-      rating: reviewData.userRating || 0,
-    };
-
-    const newData = {
-      ...reviewData,
-      comments: [newComment, ...reviewData.comments],
-    };
-
-    setReviewData(newData);
-    saveReviewsForUrl(newData);
-    setCommentText('');
+    try {
+      const res = await fetch('http://localhost:3000/save-comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: userName.trim() || 'Anonymous',
+          rating: reviewData.userRating || 0,
+          comment: commentText.trim(),
+          url,
+        }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        // Reload comments from backend
+        const res2 = await fetch(`http://localhost:3000/get-comments?url=${encodeURIComponent(url)}`);
+        const result2 = await res2.json();
+        if (result2.success) {
+          const comments = result2.data.map((c: any) => ({
+            id: c._id || c.id || Date.now().toString(),
+            author: c.name || c.author || 'Anonymous',
+            text: c.comment || c.text || '',
+            timestamp: c.timestamp ? new Date(c.timestamp).getTime() : Date.now(),
+            rating: c.rating || 0,
+          }));
+          setReviewData((prev) => ({ ...prev, comments }));
+        }
+        setCommentText('');
+      }
+    } catch (err) {
+      // fallback to localStorage
+      const newComment: Comment = {
+        id: Date.now().toString(),
+        author: userName.trim() || 'Anonymous',
+        text: commentText.trim(),
+        timestamp: Date.now(),
+        rating: reviewData.userRating || 0,
+      };
+      const newData = {
+        ...reviewData,
+        comments: [newComment, ...reviewData.comments],
+      };
+      setReviewData(newData);
+      saveReviewsForUrl(newData);
+      setCommentText('');
+    }
   };
 
   const formatDate = (timestamp: number) => {

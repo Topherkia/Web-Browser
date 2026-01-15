@@ -1,9 +1,11 @@
-import mongoose from "mongoose";
+const mongoose = require('mongoose');
 
 const CommentSchema = new mongoose.Schema({
-  text: String,
-  pageUrl: String,
-  createdAt: { type: Date, default: Date.now }
+    name: String,
+    rating: Number,
+    comment: String,
+    url: String,
+    timestamp: { type: Date, default: Date.now }
 });
 
-export default mongoose.model("Comment", CommentSchema);
+module.exports = mongoose.model('Comment', CommentSchema);

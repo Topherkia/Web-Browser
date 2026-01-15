@@ -1,107 +1,133 @@
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import searchRoutes from "./routes/search.js";
-import commentsRoutes from "./routes/comments.js";
-import dotenv from "dotenv";
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Load .env from project root
-dotenv.config({ path: join(__dirname, '..', '.env') });
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 const app = express();
+const PORT = 3000;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../')));
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log("MongoDB connected"))
-  .catch(err => console.error("MongoDB failed:", err));
+// MongoDB Schema
+const Comment = require('./models/Comment');
 
-  app.get('/api/debug/comments', (req, res) => {
-  res.json({
-    message: 'Comments debug route works',
-    timestamp: new Date().toISOString(),
-    routes: ['GET /api/comments', 'POST /api/comments', 'DELETE /api/comments/:id']
-  });
+// Updated MongoDB connection with better error handling
+async function connectDB() {
+    try {
+        await mongoose.connect(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000,
+            socketTimeoutMS: 45000,
+        });
+        console.log('✅ MongoDB Connected Successfully');
+        
+        // Create indexes
+        await Comment.createIndexes();
+    } catch (error) {
+        console.error('❌ MongoDB Connection Error:', error.message);
+    }
+}
+
+// Connect to DB
+connectDB();
+
+// POST endpoint - Save comment with validation
+app.post('/save-comment', async (req, res) => {
+    try {
+        console.log('📥 Received comment data:', req.body);
+        
+        const { name, rating, comment, url } = req.body;
+        
+        // Validate input
+        if (!name || !rating || !comment || !url) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Missing required fields' 
+            });
+        }
+        
+        // Create and save new comment
+        const newComment = new Comment({
+            name: name.trim(),
+            rating: Number(rating),
+            comment: comment.trim(),
+            url: url.trim()
+        });
+        
+        const savedComment = await newComment.save();
+        console.log('💾 Saved to MongoDB:', savedComment._id);
+        
+        res.status(201).json({ 
+            success: true, 
+            message: 'Comment saved successfully',
+            data: savedComment
+        });
+    } catch (error) {
+        console.error('❌ Error saving comment:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error saving comment',
+            error: error.message 
+        });
+    }
 });
 
-// Routes
-app.use("/api/search", searchRoutes);
-app.use("/api/comments", commentsRoutes);
-
-// Test route
-app.get('/api/test', async (req, res) => {
-  try {
-    const adminDb = mongoose.connection.db.admin();
-    const serverStatus = await adminDb.serverStatus();
-    
-    res.json({
-      status: 'success',
-      message: 'MongoDB connected successfully!',
-      database: mongoose.connection.name,
-      host: mongoose.connection.host,
-      serverStatus: {
-        version: serverStatus.version,
-        uptime: serverStatus.uptime,
-        connections: serverStatus.connections
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'MongoDB connection failed',
-      error: error.message
-    });
-  }
+// GET endpoint - Retrieve comments for a URL
+app.get('/get-comments', async (req, res) => {
+    try {
+        const { url } = req.query;
+        
+        if (!url) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'URL parameter required' 
+            });
+        }
+        
+        console.log('📋 Fetching comments for URL:', url);
+        
+        const comments = await Comment.find({ url: url })
+            .sort({ timestamp: -1 })
+            .limit(50);
+        
+        console.log(`📊 Found ${comments.length} comments`);
+        
+        res.json({ 
+            success: true, 
+            data: comments 
+        });
+    } catch (error) {
+        console.error('❌ Error fetching comments:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Error fetching comments',
+            error: error.message 
+        });
+    }
 });
 
-// Test document routes
-import Test from './models/Test.js';
-
-app.post('/api/test/create', async (req, res) => {
-  try {
-    const test = new Test({
-      message: 'Test database connection'
-    });
-    
-    await test.save();
-    
-    res.json({
-      status: 'success',
-      message: 'Test document created successfully!',
-      data: test
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to create test document',
-      error: error.message
-    });
-  }
+// Test endpoint to check DB connection
+app.get('/test-db', async (req, res) => {
+    try {
+        const count = await Comment.countDocuments();
+        res.json({ 
+            success: true, 
+            message: 'Database is connected',
+            totalComments: count,
+            dbName: mongoose.connection.db.databaseName
+        });
+    } catch (error) {
+        res.status(500).json({ 
+            success: false, 
+            message: 'Database connection failed',
+            error: error.message 
+        });
+    }
 });
 
-app.get('/api/test/all', async (req, res) => {
-  try {
-    const tests = await Test.find().sort({ timestamp: -1 });
-    
-    res.json({
-      status: 'success',
-      count: tests.length,
-      data: tests
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to fetch test documents',
-      error: error.message
-    });
-  }
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));

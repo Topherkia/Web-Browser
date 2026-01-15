@@ -2,6 +2,9 @@
 import React from 'react';
 
 const Layout = ({ children }) => {
+  const handleRefresh = () => {
+    window.location.reload();
+  };
   return (
     <div style={styles.container}>
       {/* Optional header/navigation */}
@@ -11,14 +14,15 @@ const Layout = ({ children }) => {
           <a href="#home" style={styles.navLink}>Home</a>
           <a href="#test" style={styles.navLink}>Test DB</a>
           <a href="#about" style={styles.navLink}>About</a>
+          <button style={{...styles.navLink, cursor: 'pointer', border: 'none', background: 'none'}} onClick={handleRefresh}>
+            Refresh
+          </button>
         </nav>
       </header>
-      
       {/* Main content area with scroll */}
       <main style={styles.mainContent}>
         {children}
       </main>
-      
       {/* Optional footer */}
       <footer style={styles.footer}>
         <p>© 2024 My Application. All rights reserved.</p>

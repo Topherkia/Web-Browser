@@ -1,7 +1,18 @@
 import { ArrowLeft, ArrowRight, RefreshCw, Search, Home, Star } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
-import { useState } from 'react';
+import React, { useState } from 'react';
+
+function normalizeUrl(input: string): string {
+  let url = input.trim();
+  // Remove protocol
+  url = url.replace(/^https?:\/\//, '');
+  // Remove www.
+  url = url.replace(/^www\./, '');
+  // Remove trailing slash
+  url = url.replace(/\/$/, '');
+  return url;
+}
 
 interface BrowserBarProps {
   currentUrl: string;
@@ -30,16 +41,29 @@ export function BrowserBar({
 }: BrowserBarProps) {
   const [urlInput, setUrlInput] = useState(currentUrl);
 
+  // Sync input with currentUrl whenever it changes
+  React.useEffect(() => {
+    setUrlInput(currentUrl);
+  }, [currentUrl]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onNavigate(urlInput);
+    handleSearch();
   };
 
   const handleSearch = () => {
-    if (urlInput && !urlInput.startsWith('http')) {
-      onNavigate(`search:${urlInput}`);
+    let input = urlInput.trim();
+    // If input looks like a URL but lacks protocol, add https://
+    if (/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(input)) {
+      input = 'https://' + input;
+    }
+    // Normalize for comment lookup/navigation
+    const normalized = normalizeUrl(input);
+    // If input is not a valid URL, treat as search
+    if (!/^https?:\/\//i.test(input)) {
+      onNavigate(`search:${input}`);
     } else {
-      onNavigate(urlInput);
+      onNavigate(normalized);
     }
   };
 
