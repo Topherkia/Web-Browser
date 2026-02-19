@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BrowserBar } from '@/app/components/BrowserBar';
 import { HomePage } from '@/app/components/HomePage';
-import { SearchResults } from '@/app/components/SearchResults';
 import { WebsiteViewer } from '@/app/components/WebsiteViewer';
 import { RatingComments } from '@/app/components/RatingComments';
 import {
@@ -80,7 +79,7 @@ export default function App() {
 
     if (currentUrl.startsWith('search:')) {
       const query = currentUrl.substring(7);
-      return <SearchResults query={query} onNavigate={navigateTo} />;
+      return <WebsiteViewer url={`https://www.google.com/search?q=${encodeURIComponent(query)}`} />;
     }
 
     return <WebsiteViewer url={currentUrl} />;
