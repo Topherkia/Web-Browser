@@ -66,6 +66,7 @@ export function SearchResults({ query, onNavigate }: SearchResultsProps) {
         setResults(mapped);
       } catch (err) {
         console.error('Search failed:', err);
+        
         const fallbackUrl = getEngineSearchUrl(engine, query);
 
         setError('Search service is unavailable. Showing direct search link instead.');

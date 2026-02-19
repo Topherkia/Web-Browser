@@ -26,7 +26,6 @@ export function WebsiteViewer({ url }: Props) {
       ref={webviewRef as any}
       src={url}
       style={{ width: "100%", height: "100%" }}
-      allowpopups
     />
   );
 }
