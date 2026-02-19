@@ -17,33 +17,66 @@ interface SearchResultsProps {
 export function SearchResults({ query, onNavigate }: SearchResultsProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [engine, setEngine] = useState<'google' | 'bing' | 'duckduckgo'>('google');
+
+    const getEngineSearchUrl = (selectedEngine: 'google' | 'bing' | 'duckduckgo', q: string) => {
+    const encodedQuery = encodeURIComponent(q);
+
+    if (selectedEngine === 'bing') {
+      return `https://www.bing.com/search?q=${encodedQuery}`;
+    }
+
+    if (selectedEngine === 'duckduckgo') {
+      return `https://duckduckgo.com/?q=${encodedQuery}`;
+    }
+
+    return `https://www.google.com/search?q=${encodedQuery}`;
+  };
 
   useEffect(() => {
     if (!query) return;
 
     const fetchResults = async () => {
       setLoading(true);
+      setError(null);
 
       try {
         const res = await fetch(
           `http://localhost:5000/api/search?q=${encodeURIComponent(query)}&engine=${engine}`
         );
 
-        const data = await res.json();
+      if (!res.ok) {
+          throw new Error(`Search API returned status ${res.status}`);
+        }
 
+        const data = await res.json();
+        // Support both array responses and Google Custom Search responses ({ items: [] })
+        const rawResults = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
         // Map backend response → UI format
-        const mapped = data.map((r: any) => ({
-          title: r.title,
-          url: r.url,
-          description: r.snippet,
-          source: r.source,
-        }));
+        const mapped = rawResults
+          .map((r: any) => ({
+            title: r.title || 'Untitled result',
+            url: r.url || r.link || '',
+            description: r.snippet || r.description || '',
+            source: r.source || r.displayLink || engine,
+          }))
+          .filter((r: SearchResult) => Boolean(r.url));
 
         setResults(mapped);
       } catch (err) {
         console.error('Search failed:', err);
-        setResults([]);
+        const fallbackUrl = getEngineSearchUrl(engine, query);
+
+        setError('Search service is unavailable. Showing direct search link instead.');
+        setResults([
+          {
+            title: `Search "${query}" on ${engine === 'duckduckgo' ? 'DuckDuckGo' : engine[0].toUpperCase() + engine.slice(1)}`,
+            url: fallbackUrl,
+            description: 'The local search API is unavailable. Click to open search results directly in the browser.',
+            source: 'fallback',
+          },
+        ]);
       }
 
       setLoading(false);
@@ -74,7 +107,7 @@ export function SearchResults({ query, onNavigate }: SearchResultsProps) {
       </div>
 
       {loading && <p className="text-gray-500">Searching...</p>}
-
+      {!loading && error && <p className="text-amber-600 text-sm">{error}</p>}
       <div className="space-y-3">
         {!loading &&
           results.map((result, index) => (
@@ -83,6 +116,7 @@ export function SearchResults({ query, onNavigate }: SearchResultsProps) {
               className="p-4 hover:shadow-md transition-shadow cursor-pointer"
               onClick={() => onNavigate(result.url)}
             >
+
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white">
                   {result.title.charAt(0)}

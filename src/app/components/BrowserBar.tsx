@@ -3,6 +3,7 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import React, { useState } from 'react';
 
+/*
 function normalizeUrl(input: string): string {
   let url = input.trim();
   // Remove protocol
@@ -13,6 +14,7 @@ function normalizeUrl(input: string): string {
   url = url.replace(/\/$/, '');
   return url;
 }
+  */
 
 interface BrowserBarProps {
   currentUrl: string;
@@ -52,18 +54,27 @@ export function BrowserBar({
   };
 
   const handleSearch = () => {
-    let input = urlInput.trim();
+    const input = urlInput.trim();
+
+    if (!input) {
+      return;
+    }
+
+    if (input.includes(' ')) {
+      onNavigate(`search:${input}`);
+      return;
+    }
+
     // If input looks like a URL but lacks protocol, add https://
     if (/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(input)) {
-      input = 'https://' + input;
+       onNavigate(`https://${input}`);
+      return;
     }
-    // Normalize for comment lookup/navigation
-    const normalized = normalizeUrl(input);
     // If input is not a valid URL, treat as search
     if (!/^https?:\/\//i.test(input)) {
       onNavigate(`search:${input}`);
     } else {
-      onNavigate(normalized);
+      onNavigate(input);
     }
   };
 

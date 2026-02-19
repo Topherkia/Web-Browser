@@ -27,9 +27,22 @@ export default function App() {
   }, [historyIndex, history]);
 
   const navigateTo = (url: string) => {
+    const trimmedUrl = url.trim();
+
+    if (!trimmedUrl) {
+      return;
+    }
+
+    const currentHistoryUrl = history[historyIndex]?.url;
+
+    // Avoid duplicate consecutive entries
+    if (currentHistoryUrl === trimmedUrl) {
+      return;
+    }
+
     // Remove any forward history when navigating to a new page
     const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push({ url, timestamp: Date.now() });
+    newHistory.push({ url: trimmedUrl, timestamp: Date.now() });
     setHistory(newHistory);
     setHistoryIndex(newHistory.length - 1);
   };
