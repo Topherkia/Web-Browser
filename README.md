@@ -1,7 +1,7 @@
 
   # Web Browser with Ratings
 
-  This is a code bundle for Web Browser with Ratings.
+  This is a code for Web Browser with Ratings.
 
   ## Running the code
 
